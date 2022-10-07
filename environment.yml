@@ -1,0 +1,14 @@
+name: ps_points
+channels:
+- conda-forge
+dependencies:
+        - earthengine-api
+        - pandas
+        - black
+        - matplotlib
+        - seaborn
+        - folium
+        - tensorflow
+        - geemap
+        - jupytext
+        - jupyter
