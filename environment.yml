@@ -7,8 +7,11 @@ dependencies:
         - black
         - matplotlib
         - seaborn
-        - folium
-        - tensorflow
+        - folium        
         - geemap
         - jupytext
         - jupyter
+        - pip
+        - pip:
+                - tensorflow
+
