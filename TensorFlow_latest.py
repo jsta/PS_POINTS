@@ -1,26 +1,3 @@
-# ---
-# jupyter:
-#   jupytext:
-#     formats: ipynb,py
-#     text_representation:
-#       extension: .py
-#       format_name: light
-#       format_version: '1.5'
-#       jupytext_version: 1.14.0
-#   kernelspec:
-#     display_name: Python 3.9.7 ('base')
-#     language: python
-#     name: python3
-# ---
-
-# + [markdown] colab_type="text" id="view-in-github"
-# <a href="https://colab.research.google.com/github/prosperwashaya/PS_POINTS/blob/master/TensorFlow_latest.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
-
-# + id="7-VYqqaLHSlY"
-# from google.colab import auth
-# auth.authenticate_user()
-
-# + colab={"base_uri": "https://localhost:8080/"} id="q3petbPSIKOB" outputId="8472d2da-1ca5-4617-ce3d-4c0fde8f1e5b"
 import ee
 import folium
 import geemap
@@ -33,14 +10,6 @@ from sklearn.metrics import (
     mean_absolute_error,
     explained_variance_score,
 )
-
-# ee.Authenticate()
-ee.Initialize()
-
-# + colab={"base_uri": "https://localhost:8080/"} id="E3C5rzRhIMxh" outputId="c167ebfd-e0d5-4bf8-926b-972f4fdabcfc"
-print(tf.__version__)
-print(folium.__version__)
-
 
 def compositeFunctionSR(image):
     # Bits 3 and 5 are cloud shadow and cloud, respectively.
@@ -101,6 +70,8 @@ def to_tuple(inputs, label):
         tf.expand_dims(tf.expand_dims(label, 1), 1),
     )
 
+# ee.Authenticate()
+ee.Initialize()
 
 # + id="hqtqQOwfT1sd"
 # // Load Sentinel-1 C-band SAR Ground Range collection (log scale, VV, descending)
@@ -118,16 +89,16 @@ FC_map = FC_map2.reduceToVectors(
     maxPixels=1e10,
 )
 
-collectionVV = (
-    ee.ImageCollection("COPERNICUS/S1_GRD")
-    .filter(ee.Filter.eq("instrumentMode", "IW"))
-    .filter(ee.Filter.listContains("transmitterReceiverPolarisation", "VV"))
-    .filter(ee.Filter.eq("orbitProperties_pass", "DESCENDING"))
-    .filterMetadata("resolution_meters", "equals", 10)
-    .filterBounds(study)
-    .select("VV")
-)
-# print(collectionVV, 'Collection VV')
+# this is not used? - jsta
+# collectionVV = (
+#     ee.ImageCollection("COPERNICUS/S1_GRD")
+#     .filter(ee.Filter.eq("instrumentMode", "IW"))
+#     .filter(ee.Filter.listContains("transmitterReceiverPolarisation", "VV"))
+#     .filter(ee.Filter.eq("orbitProperties_pass", "DESCENDING"))
+#     .filterMetadata("resolution_meters", "equals", 10)
+#     .filterBounds(study)
+#     .select("VV")
+# )
 
 # Load Sentinel-1 C-band SAR Ground Range collection (log scale, VH, descending)
 collectionVH = (
@@ -139,9 +110,6 @@ collectionVH = (
     .filterBounds(study)
     .select("VH")
 )
-# print(collectionVH, 'Collection VH')
-# Map.addLayer(study)
-# Map.addLayer(FC_map)
 Forest_class_mapCZ = ee.ImageCollection(FC_map)
 
 # Filter by date
@@ -164,16 +132,10 @@ sixth2019VH_filtered = sixth2019VH.focal_mean(SMOOTHING_RADIUS, "circle", "meter
 seventh2020VH_filtered = seventh2020VH.focal_mean(SMOOTHING_RADIUS, "circle", "meters")
 
 # clip the SAR layers with FC_map
-
 clip_first2014VH_filtered = first2014VH_filtered.clip(FC_map)
 featureSimple14 = ee.Feature(clip_first2014VH_filtered)
 
-#  return feature.simplify({maxError: 100})
-#
-# simplifiedCol =featureSimple.map(func_fvz)
-
 featureSimple1 = featureSimple14.simplify(maxError=3000000)
-# Map.addLayer(featureSimple1)
 clip_sixth2019VH_filtered = sixth2019VH_filtered.clip(FC_map)
 featureSimple19 = ee.Feature(clip_sixth2019VH_filtered)
 featureSimple2 = featureSimple19.simplify(maxError=3000000)
@@ -195,14 +157,6 @@ featureSimple2 = featureSimple19.simplify(maxError=3000000)
 ratio1518VH = clip_second2015VH_filtered.subtract(clip_fifth2018VH_filtered)
 ratio1820VH = clip_fifth2018VH_filtered.subtract(clip_seventh2020VH_filtered)
 
-# #Calculate histograms for each image
-# print(ui.Chart.image.histogram({'image':ratio1518VH, 'region':test_area, 'scale':500}))
-# #print(ui.Chart.image.histogram({image:ratio1516VH, region:newroi, scale:300}))
-# #print(ui.Chart.image.histogram({image:ratio1617VH, region:newroi, scale:300}))
-# #print(ui.Chart.image.histogram({image:ratio1718VH, region:newroi, scale:300}))
-
-# print(ui.Chart.image.histogram({'image':ratio1820VH, 'region':test_area, 'scale':500}))
-
 # Combine the mean and standard deviation reducers.
 reducers = ee.Reducer.mean().combine(reducer2=ee.Reducer.stdDev(), sharedInputs=True)
 
@@ -222,9 +176,6 @@ stats1820 = ratio1820VH.reduceRegion(
     # tileScale: 16
 )
 
-# Print the mean and stdv for each ratio image
-# print('stats:', stats1518, stats1820)
-# , stats1516,stats1617,stats1718,stats1819
 # Apply Thresholds based on stdvx6.14
 RATIO_UPPER_THRESHOLD1518 = 3.4
 RATIO_UPPER_THRESHOLD1820 = 2.96
@@ -302,14 +253,7 @@ N_CLASSES = 2
 GEOMETRY = ee.FeatureCollection("users/pwashaya9/czech_shp")
 
 corine = ee.Image("COPERNICUS/CORINE/V18_5_1/100m/2012").clip(GEOMETRY)
-
-# print(corine)
-# print(corine.propertyNames())
-lc_value = corine.get("landcover_class_names")
-# print(lc_value)
-
 forest = corine.updateMask(corine.gte(22).And(corine.lte(25)))
-# Map.addLayer(forest)
 
 image_2019 = (
     ee.ImageCollection(
@@ -513,15 +457,6 @@ VERSION_NAME = "v0"
 
 # export_image = 'projects/ee-pwashaya9/logistic_image'
 
-# image_task = ee.batch.Export.image.toAsset(
-#   image = stack,
-#   description = 'logistic_image',
-#   assetId = export_image,
-#   region = GEOMETRY,
-#   scale = 30,
-#   maxPixels = 1e10
-# )
-
 # outputBucket = 'ee-prosper' #Change for your Cloud Storage bucket
 
 # Export the image to an Earth Engine asset.
@@ -615,18 +550,7 @@ test_dataset = test_dataset.batch(batch_size)
 # Print the first parsed record to check.
 pprint(iter(train_dataset).next())
 
-# + colab={"base_uri": "https://localhost:8080/", "height": 1000} id="q5miK7LJQ1e7" outputId="990622f1-61d3-4152-e80d-d8e34998f997"
-
-# + id="qqVXROcKQzr0"
-
-
 # + colab={"base_uri": "https://localhost:8080/"} id="_X5I6Zy6Jnsj" outputId="09738b0e-80a8-4242-fe62-9af79797b9bf"
-
-# model = tf.keras.models.Sequential([
-#   tf.keras.layers.Dense(5, activation='sigmoid'), #identity
-#   tf.keras.layers.Dense(5, activation='sigmoid'),
-#   tf.keras.layers.Dense(5, activation='sigmoid'),
-#   tf.keras.layers.Dense(1)])
 
 # model = tf.keras.models.Sequential(RandomForestModel(num_trees=30))
 
