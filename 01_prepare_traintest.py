@@ -51,6 +51,8 @@ GEOMETRY = ee.Geometry.Polygon(
     False,
 )
 
+ee.Initialize()
+
 corine = ee.Image("COPERNICUS/CORINE/V18_5_1/100m/2012").clip(GEOMETRY)
 forest = corine.updateMask(corine.gte(22).And(corine.lte(25)))
 
