@@ -5,11 +5,8 @@ import numpy as np
 import tensorflow as tf
 from pprint import pprint
 from tensorflow import keras
-from sklearn.metrics import (
-    mean_squared_error,
-    mean_absolute_error,
-    explained_variance_score,
-)
+from sklearn.metrics import mean_squared_error
+
 
 def compositeFunctionSR(image):
     # Bits 3 and 5 are cloud shadow and cloud, respectively.
@@ -70,6 +67,21 @@ def to_tuple(inputs, label):
         tf.expand_dims(tf.expand_dims(label, 1), 1),
     )
 
+
+PROJECT = "jsta-pspoints"
+OUTPUT_BUCKET = "rabpro-gee-uploads"
+DATA_BUCKET = "rabpro-gee-uploads"
+REGION = "us-central1"
+TRAIN_FILE_PREFIX = "logistic_demo_training"
+TEST_FILE_PREFIX = "logistic_demo_testing"
+file_extension = ".tfrecord.gz"
+TRAIN_FILE_PATH = (
+    "gs://" + DATA_BUCKET + "/ps_points/" + TRAIN_FILE_PREFIX + file_extension
+)
+TEST_FILE_PATH = (
+    "gs://" + DATA_BUCKET + "/ps_points/" + TEST_FILE_PREFIX + file_extension
+)
+
 # ee.Authenticate()
 ee.Initialize()
 
@@ -88,17 +100,6 @@ FC_map = FC_map2.reduceToVectors(
     labelProperty="zone",
     maxPixels=1e10,
 )
-
-# this is not used? - jsta
-# collectionVV = (
-#     ee.ImageCollection("COPERNICUS/S1_GRD")
-#     .filter(ee.Filter.eq("instrumentMode", "IW"))
-#     .filter(ee.Filter.listContains("transmitterReceiverPolarisation", "VV"))
-#     .filter(ee.Filter.eq("orbitProperties_pass", "DESCENDING"))
-#     .filterMetadata("resolution_meters", "equals", 10)
-#     .filterBounds(study)
-#     .select("VV")
-# )
 
 # Load Sentinel-1 C-band SAR Ground Range collection (log scale, VH, descending)
 collectionVH = (
@@ -182,65 +183,11 @@ RATIO_UPPER_THRESHOLD1820 = 2.96
 ratio1518VH_thresholded = ratio1518VH.gt(RATIO_UPPER_THRESHOLD1518)
 ratio1820VH_thresholded = ratio1820VH.gt(RATIO_UPPER_THRESHOLD1820)
 
-# Compare differences in vegetation loss between 16/18 and 18/20
-area_loss1518 = ratio1518VH_thresholded.reduceRegion(
-    reducer=ee.Reducer.sum(),
-    geometry=study,
-    scale=20,
-    maxPixels=60e7,
-)
-
-# Print the mean and stdv for each ratio image
-# print('stats:', area_loss1518)
-
-# Export.image.toDrive({
-#    'image': ratio1518VH_thresholded,
-#    'description': 'area_loss1518',
-#    'scale': 10,
-#    'region': newroi,
-#    'fileFormat': 'GeoTIFF',
-#    'maxPixels': 40e8
-# })
-
-# Export.table.toDrive({
-#   'collection': ee.FeatureCollection([
-#     ee.Feature(None,area_loss1518 )
-#   ]),
-#   'description': 'stats1518',
-#   'fileFormat': 'CSV'
-# })
-# Map
-
-
 # + id="YF05sMPx4Jse"
 dataset = ee.Image("CGIAR/SRTM90_V4")
 elevation = dataset.select("elevation").clip(FC_map)
 slope = ee.Terrain.slope(elevation).clip(FC_map)
 aspect = ee.Terrain.aspect(elevation).clip(FC_map)
-
-# + id="yulGmPI4IpTw"
-# REPLACE WITH YOUR CLOUD PROJECT!
-PROJECT = "jsta-pspoints"
-
-# Output bucket for trained models.  You must be able to write into this bucket.
-OUTPUT_BUCKET = "rabpro-gee-uploads"
-
-# Cloud Storage bucket with training and testing datasets.
-DATA_BUCKET = "rabpro-gee-uploads"
-
-# This is a good region for hosting AI models.
-REGION = "us-central1"
-
-# Training and testing dataset file names in the Cloud Storage bucket.
-TRAIN_FILE_PREFIX = "logistic_demo_training"
-TEST_FILE_PREFIX = "logistic_demo_testing"
-file_extension = ".tfrecord.gz"
-TRAIN_FILE_PATH = (
-    "gs://" + DATA_BUCKET + "/ps_points/" + TRAIN_FILE_PREFIX + file_extension
-)
-TEST_FILE_PATH = (
-    "gs://" + DATA_BUCKET + "/ps_points/" + TEST_FILE_PREFIX + file_extension
-)
 
 # The labels, consecutive integer indices starting from zero, are stored in
 # this property, set on each point.
@@ -295,22 +242,14 @@ image_2015 = (
     .map(landuse)
 )
 
-# Study area.  CZECH.
-# GEOMETRY2 = geemap.shp_to_ee( r'C:\Users\Prosper\Desktop\EE\GEEMAP\SPH_STAT.shp', encoding="ISO-8859-1")
-# GEOMETRY = ee.Feature('users/pwashaya9/czech_shp')
-
 OPTICAL_BANDS = ["B1", "B2", "B3", "B4", "B5", "B6", "B7"]
 NDVI_BANDS = ["NDVI"]
 NDWI = ["NDWI"]
 BANDS = [NDVI_BANDS + NDWI]
 
-
 mosaic_2019 = image_2019.mosaic()
-# unmasked_2019 = mosaic_2019 #.unmask(0)
 final_2019 = (mosaic_2019.clip(GEOMETRY)).select(OPTICAL_BANDS)
-
 mosaic_2015 = image_2015.mosaic()
-# unmasked_2015 = mosaic_2015#.unmask(0)
 final_2015 = (mosaic_2015.clip(GEOMETRY)).select(OPTICAL_BANDS)
 
 NIR_2015 = final_2015.select("B5")
@@ -370,16 +309,7 @@ stack = (
 ).addBands(stack_slope)
 
 
-# composite1 = final_2019.addBands(final_2015)
-# stack = NDVI_Layer.float()
-
-# IMAGE = ee.Image('projects/ee-pwashaya9/assets/tezba_raster_binary2')
-
-# LOSS_image = ee.ImageCollection([IMAGE]).map(landuse)
-# stack = (((IMAGE).select('b1')).rename('NDVI')).uint8()
-
 NDVI_BANDS = ["NDVI"]
-# BANDS = ('NDVI')
 BEFORE_BANDS = NDVI_BANDS + OPTICAL_BANDS
 AFTER_BANDS = [str(s) + "_1" for s in BEFORE_BANDS]
 NDVI_BANDS = ["NDVI"]
@@ -389,9 +319,7 @@ SAR_BAND = ["SAR"]
 SLOPE_BAND = ["slope"]
 ELEVATION_BAND = ["elevation"]
 ASPECT_BAND = ["aspect"]
-# BANDS = NDVI_BANDS + NDWI + EVI + SAR_BAND + SLOPE_BAND
 BANDS = NDWI + SAR_BAND
-
 
 # Forest loss in 2016 is what we want to predict.
 IMAGE = ee.Image("projects/ee-pwashaya9/assets/tezba_raster_binary2")
@@ -399,13 +327,6 @@ IMAGE = ee.Image("projects/ee-pwashaya9/assets/tezba_raster_binary2")
 LOSS_image = ee.ImageCollection([IMAGE]).map(landuse)
 LOSS_19 = (((IMAGE).select("b1")).rename(LABEL)).uint8()
 LOSS19 = LOSS_19.gt(0.5)
-
-# GEOMETRY = ee.Geometry.Polygon(
-#         [[[48.455920, 18.583328],
-#           [51.237297,  18.845534],
-#           [51.265385,  11.931759],
-#           [48.410289, 11.898145]]], None, False)
-
 
 GEOMETRY = ee.Geometry.Polygon(
     [
@@ -421,12 +342,6 @@ GEOMETRY = ee.Geometry.Polygon(
     False,
 )
 
-# GEOMETRY = ee.Geometry.Polygon([[[17.4615494854541,50.08656806303931],
-#                                 [17.49897166562988,50.08656806303931],
-#                                 [17.49897166562988,50.11387574304825],
-#                                 [17.4615494854541,50.11387574304825],
-#                                 [17.4615494854541,50.08656806303931]]], None, False)
-
 # These names are used to specify properties in the export of training/testing
 # data and to define the mapping between names and data when reading from
 # the TFRecord file into a tf.data.Dataset.
@@ -436,31 +351,15 @@ FEATURE_NAMES.append(LABEL)
 # List of fixed-length features, all of which are float32.
 columns = [tf.io.FixedLenFeature(shape=[1], dtype=tf.float32) for k in FEATURE_NAMES]
 
-
 # Dictionary with feature names as keys, fixed-length features as values.
 FEATURES_DICT = dict(zip(FEATURE_NAMES, columns))
-
-# Where to save the trained model.
 MODEL_DIR = "gs://" + OUTPUT_BUCKET + "/logistic_model"
-# Where to save the EEified model.
 EEIFIED_DIR = "gs://" + OUTPUT_BUCKET + "/logistic_eeified"
-
-# Name of the AI Platform model to be hosted.
 MODEL_NAME = "logistic_model5"
-# Version of the AI Platform model to be hosted.
 VERSION_NAME = "v0"
 
-
-# Map = geemap.Map()
-
-# Map
-
-# export_image = 'projects/ee-pwashaya9/logistic_image'
-
-# outputBucket = 'ee-prosper' #Change for your Cloud Storage bucket
-
 # Export the image to an Earth Engine asset.
-export_image = "projects/ee-pwashaya9/assets/logistic_demo_imageNDWI"
+export_image = "projects/jsta-pspoints/assets/logistic_demo_imageNDWI"
 
 image_task = ee.batch.Export.image.toAsset(
     image=stack,
@@ -470,16 +369,6 @@ image_task = ee.batch.Export.image.toAsset(
     scale=30,
     maxPixels=1e10,
 )
-
-# + colab={"base_uri": "https://localhost:8080/", "height": 621, "referenced_widgets": ["2b179782dfa64c168af9dd4160937cfe", "6dfd6c6bfca9488698cc0fbd49bc62c5", "9e34cba6e3ee4fe9b77bee128033b641", "6c2a659ad02143c8951e18243fa10106", "11c9829c21904656ac1ec42527c58c8a", "cc23c18c07334befabe716a733a096e8", "1e546314289a4e7e850b0abdb8fdf60c", "b740913b794641c7925ead83bcc2db03", "076026ace6fe4382814b54d1773d0184", "739b2847eb7b4afaa49e4018a2cc4e80", "3725c0c7b31d419e8de81c7a0008aee8", "4c813612c7b246cebe67de306febc7f6", "fd3c7b0bea03409bae2c74328906a470", "afe183ddb9ac4e27a573f0c314d248b9", "bf93a45253f447f09688e2cb9bc45ad6", "cbcc51c45a8e4021b723e4222c661a70", "f6977029b2334cbe8639a756b5f0678f", "6c7d92a8fe3f468f9dfe13256d1c5f4e", "4eee8e05e51c43b5bf98bc6f40edf9fc", "3e1b201260de48f09fa4f165bead4b60", "a7fd024c3c6241209f7fda971dc9c153", "0b99987a808d444687b226caa71f65d6", "5a45beb59a984eeea975e24966a39198", "da6e81bd19d246e999cf9166dfe1fcc0", "886646d05af14d5ca3b5c3f5dc7b9f48", "ad19c359483942ac805d22b95c223ea1", "9e458e4b28594590852015bd5d07c340", "7e03e7771cd7401cac13e7915e5ae9c5"]} id="SY6RGrJGn6E6" outputId="a94c2033-b0ee-4bd7-d43b-6d66a8a2cd02"
-Map = geemap.Map()
-Map.addLayer(stack, {}, "loss")
-Map.addLayer(LOSS19, {}, "19")
-# Map.addLayer(elevation,{}, 'elevation')
-Map.addLayer(slope, {}, "slope")
-
-
-Map
 
 # + id="1AKLDI3iIqus"
 image_task.start()
