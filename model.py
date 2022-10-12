@@ -158,6 +158,7 @@ print(output_dict)
 
 # + id="4VZow-zHVmA3"
 PROJECT = "quick-keel-352020"
+EEIFIED_DIR = "gs://" + OUTPUT_BUCKET + "/logistic_eeified"
 
 # + colab={"base_uri": "https://localhost:8080/"} id="dFIwfUBqVoRq" outputId="e8b65972-35c7-4a7e-c6de-c8345e243743"
 # !earthengine set_project {PROJECT}

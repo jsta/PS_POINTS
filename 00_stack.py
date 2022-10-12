@@ -278,7 +278,6 @@ columns = [tf.io.FixedLenFeature(shape=[1], dtype=tf.float32) for k in FEATURE_N
 # Dictionary with feature names as keys, fixed-length features as values.
 FEATURES_DICT = dict(zip(FEATURE_NAMES, columns))
 MODEL_DIR = "gs://" + OUTPUT_BUCKET + "/logistic_model"
-EEIFIED_DIR = "gs://" + OUTPUT_BUCKET + "/logistic_eeified"
 MODEL_NAME = "logistic_model5"
 VERSION_NAME = "v0"
 
